@@ -21,4 +21,4 @@ def hi_task(name):
 @task
 def buy_task(name):
     logger = prefect.context.get("logger")
-    logger.info(f"Buy {name}!")
+    logger.info(f"Bye {name}!")
