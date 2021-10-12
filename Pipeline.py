@@ -73,5 +73,3 @@ class Pipeline:
     @property
     def flow_name(self):
         return self._flow_name
-
-Pipeline("test", "test_flow").create_flow()
