@@ -3,6 +3,19 @@ from prefect import Flow
 from prefect.schedules.schedules import CronSchedule
 from task.prep import *
 
+DF_PATH = './train.csv'
+BATCH_SIZE = 64
+TRAINING_EPOCH=3
+DEVICE = 'cpu'
+CRITERION = torch.nn.CrossEntropyLoss().to(DEVICE)
+LEARNING_RATE = 1e-3
+train_transform = transforms.Compose([
+                transforms.ToPILImage(),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=(0.5,), std=(1.0,))
+            ])
+Net = MnistNet()
+optimizer = torch.optim.Adam(Net.parameters(), lr=LEARNING_RATE)
 
 class Pipeline:
     _project_name = None
@@ -40,29 +53,18 @@ class Pipeline:
             # buy_task(name1 + name2)
             # buy_task(name1 + name2)
 
-            DF_PATH = './train.csv'
-            BATCH_SIZE = 64
-            TRAINING_EPOCH=3
-            DEVICE = 'cpu'
-            CRITERION = torch.nn.CrossEntropyLoss().to(DEVICE)
-            LEARNING_RATE = 1e-3
-            train_transform = transforms.Compose([
-                            transforms.ToPILImage(),
-                            transforms.ToTensor(),
-                            transforms.Normalize(mean=(0.5,), std=(1.0,))
-                        ])
-            Net = MnistNet()
-            optimizer = torch.optim.Adam(Net.parameters(), lr=LEARNING_RATE)
 
             train_df, valid_df = load_dataset(df_path=DF_PATH)
-            train_loader, valid_loader, total_batch = preprocess_train(Dataset=Dataset, transform=train_transform, batch_size=BATCH_SIZE, train_df=train_df, valid_df=valid_df)
-            train_Net = cnn_training(Net=Net, train_loader=train_loader, epoch=TRAINING_EPOCH, device=DEVICE, criterion=CRITERION, optimizer=optimizer, total_batch=total_batch)
-            save_model()
+
+            train_loader, valid_loader, total_batch = preprocess_train(train_df, valid_df)
+
+            train_Net = cnn_training(train_loader=train_loader, total_batch=total_batch)
+            save_model(train_Net)
             Net2 = return_Net2(train_Net)
-            feature_weight_df = make_knn_feature(train_df=train_df, train_loader=train_loader, device=DEVICE, optimizer=optimizer, Net2=Net2)
-            KNN = knn_training(neighbors=3, feature_weight_df=feature_weight_df)
-            knn_result = predict_knn_model(323, train_df=train_df, valid_df=valid_df, transform=train_transform, Net2=Net2, KNN=KNN)
-                                            
+            feature_weight_df = make_knn_feature(train_df=train_df, train_loader=train_loader, Net2=Net2)
+            KNN = knn_training(feature_weight_df=feature_weight_df)
+            knn_result = predict_knn_model(323, train_df=train_df, valid_df=valid_df, Net2=Net2, KNN=KNN)
+            save_result(knn_result)
             # implement here
             # ...
 
